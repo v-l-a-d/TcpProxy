@@ -10,7 +10,7 @@ import java.util.Scanner;
 
 /**
  */
-public class TcpRelay {
+public class TcpProxy {
 
     private final static Map<Integer, InetSocketAddress> ROUTES =
             ImmutableMap.of(60021, new InetSocketAddress("localhost.localdomain", 60020));
