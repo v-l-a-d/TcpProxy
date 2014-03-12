@@ -39,8 +39,8 @@ class Throttler implements Runnable, Closeable {
         packets = new AtomicLong(0);
 
         // Initial rate settings
-        rate = MIN_RATE;
-        increment = rate / 50;
+        rate = 10;
+        increment = 1;
         permits = new Semaphore(rate);
 
         running = true;
@@ -87,7 +87,7 @@ class Throttler implements Runnable, Closeable {
                 break;
         }
 
-        increment = rate / 50;
+        increment = Math.max(1, rate / 50);
         lastAdjustmentTimeStamp = System.nanoTime();
     }
 
@@ -104,7 +104,7 @@ class Throttler implements Runnable, Closeable {
                 // Check for further throttle easing due to idleness
                 if (nextTick > lastAdjustmentTimeStamp + (5*60*1000*1000*1000L)) {
                     // Five minutes since any update - maybe ease.
-                    if (permits.availablePermits() < (rate * 0.5)) {
+                    if (permits.availablePermits() < rate) {
                         // Current rate is approaching or at the rate limit
                         adjustThrottle(Adjustment.EASE);
                     }
