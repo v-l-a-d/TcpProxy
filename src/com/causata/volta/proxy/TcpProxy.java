@@ -3,17 +3,23 @@ package com.causata.volta.proxy;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closeables;
 
-import java.net.InetSocketAddress;
+import java.net.*;
 import java.util.EnumSet;
 import java.util.Map;
-import java.util.Scanner;
 
 /**
  */
 public class TcpProxy {
 
-    private final static Map<Integer, InetSocketAddress> ROUTES =
-            ImmutableMap.of(60021, new InetSocketAddress("localhost.localdomain", 60020));
+    private final static Map<Integer, InetSocketAddress> ROUTES;
+
+    static {
+        try {
+            ROUTES = ImmutableMap.of(60021, new InetSocketAddress(InetAddress.getLocalHost().getHostName(), 60020));
+        } catch (UnknownHostException e) {
+            throw new RuntimeException("Failed to query local hostname");
+        }
+    }
 
     public static void main(String[] args) {
         SelectorThread selectorThread = null;
@@ -26,17 +32,27 @@ public class TcpProxy {
                 selectorThread.startServerSocket(new InetSocketAddress(port));
             }
 
-            Scanner scanner = new Scanner(System.in);
-            String cmd = scanner.nextLine();
+            // Start a UDP server socket to receive commands
+            String port = args.length > 0 ? args[0] : "23132";
+            int cmdPort = Integer.valueOf(port);
+            byte[] cmdBuffer = new byte[1024];
+            DatagramSocket cmdSocket = new DatagramSocket(cmdPort);
+            DatagramPacket packet = new DatagramPacket(cmdBuffer, cmdBuffer.length);
 
-            while (cmd != null) {
+            cmdSocket.receive(packet);
+
+            while (packet.getLength() > 0) {
+
+                String cmd = new String(packet.getData(), 0, packet.getLength());
+
                 try {
                     Throttler.Adjustment adjustment = Throttler.Adjustment.valueOf(cmd);
                     throttle.adjustThrottle(adjustment);
                 } catch (IllegalArgumentException ix) {
-                    System.out.println("You wot? " + EnumSet.allOf(Throttler.Adjustment.class));
+                    System.out.println("You wot? " + cmd + "? " + EnumSet.allOf(Throttler.Adjustment.class));
                 }
-                cmd = scanner.nextLine();
+
+                cmdSocket.receive(packet);
             }
 
         } catch (Exception e) {

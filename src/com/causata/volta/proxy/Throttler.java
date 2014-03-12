@@ -37,6 +37,7 @@ class Throttler implements Runnable, Closeable {
     private volatile long lastAdjustmentTimeStamp;
 
     private volatile int currentMessageRate;
+    private volatile int packetcount;
 
     Throttler() {
         perSecondMessageRates = new int[60];
@@ -48,7 +49,7 @@ class Throttler implements Runnable, Closeable {
 
         running = true;
 
-        Thread t = new Thread("Proxy permit dispenser");
+        Thread t = new Thread(this, "Proxy permit dispenser");
         t.setDaemon(true);
         t.start();
     }
@@ -87,6 +88,7 @@ class Throttler implements Runnable, Closeable {
 
         perSecondMessageRates[offset]++;
         currentMessageRate = currentPerSecondRate();
+        packetcount++;
     }
 
     /**
@@ -149,6 +151,7 @@ class Throttler implements Runnable, Closeable {
     @Override
     public void run() {
         long nextTick = System.nanoTime();
+        long minuteTimer = nextTick;
         while (running) {
             try {
                 // Check for further throttle easing due to idleness
@@ -158,6 +161,11 @@ class Throttler implements Runnable, Closeable {
                         // Current rate is approaching or at the rate limit
                         adjustThrottle(Adjustment.EASE);
                     }
+                }
+
+                if (nextTick  > minuteTimer) {
+                    System.out.println("Message rate: " + currentMessageRate + " total packets: " + packetcount);
+                    minuteTimer += 60*1000*1000*1000L;
                 }
 
                 // Next tick in 20ms
