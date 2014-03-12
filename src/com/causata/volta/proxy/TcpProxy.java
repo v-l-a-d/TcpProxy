@@ -44,12 +44,19 @@ public class TcpProxy {
             while (packet.getLength() > 0) {
 
                 String cmd = new String(packet.getData(), 0, packet.getLength());
-
-                try {
-                    Throttler.Adjustment adjustment = Throttler.Adjustment.valueOf(cmd);
-                    throttle.adjustThrottle(adjustment);
-                } catch (IllegalArgumentException ix) {
-                    System.out.println("You wot? " + cmd + "? " + EnumSet.allOf(Throttler.Adjustment.class));
+                if ("STATUS".equals(cmd)) {
+                    byte[] state = throttle.toString().getBytes();
+                    DatagramPacket status = new DatagramPacket(state, state.length, packet.getSocketAddress());
+                    cmdSocket.send(status);
+                } else {
+                    try {
+                        Throttler.Adjustment adjustment = Throttler.Adjustment.valueOf(cmd);
+                        throttle.adjustThrottle(adjustment);
+                    } catch (IllegalArgumentException ix) {
+                        byte[] rsp = ("You wot? " + cmd + "? Commands: STATUS or " + EnumSet.allOf(Throttler.Adjustment.class)).getBytes();
+                        DatagramPacket status = new DatagramPacket(rsp, rsp.length, packet.getSocketAddress());
+                        cmdSocket.send(status);
+                    }
                 }
 
                 cmdSocket.receive(packet);
