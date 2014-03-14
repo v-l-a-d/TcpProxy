@@ -273,42 +273,35 @@ class SelectorThread extends Thread implements Closeable {
 
     private void processRead(SelectionKey key) throws InterruptedException {
         throttle.acquire();
-        try {
-            // Get the connection object associated with the key.
-            ConnectionLeg lconn = (ConnectionLeg)key.attachment();
 
-            try {
-                // Call into the connection to read data.
-                lconn.read();
-            }
-            catch (Exception iox) {
-                LOG.error("read error ", iox);
-            }
-        } finally {
-            throttle.release();
+        // Get the connection object associated with the key.
+        ConnectionLeg lconn = (ConnectionLeg)key.attachment();
+
+        try {
+            // Call into the connection to read data.
+            lconn.read();
+        }
+        catch (Exception iox) {
+            LOG.error("read error ", iox);
         }
     }
 
     private void processWrite(SelectionKey key) throws InterruptedException {
         throttle.acquire();
+
+        // Get the connection object associated with the key.
+        ConnectionLeg lconn = (ConnectionLeg)key.attachment();
+
+        // Get the other leg
+        ConnectionLeg other = lconn.getOtherLeg();
+
         try {
-            // Get the connection object associated with the key.
-            ConnectionLeg lconn = (ConnectionLeg)key.attachment();
-
-            // Get the other leg
-            ConnectionLeg other = lconn.getOtherLeg();
-
-            try {
-                // Call into the connection to read data - this will trigger a write also
-                other.read();
-            }
-            catch (Exception iox) {
-                LOG.error("read error ", iox);
-                other.close();
-            }
+            // Call into the connection to read data - this will trigger a write also
+            other.read();
         }
-        finally {
-            throttle.release();
+        catch (Exception iox) {
+            LOG.error("read error ", iox);
+            other.close();
         }
     }
 }

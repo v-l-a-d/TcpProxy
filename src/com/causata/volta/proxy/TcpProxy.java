@@ -48,12 +48,14 @@ public class TcpProxy {
                     byte[] state = throttle.toString().getBytes();
                     DatagramPacket status = new DatagramPacket(state, state.length, packet.getSocketAddress());
                     cmdSocket.send(status);
+                } else if ("RESET".equals(cmd)) {
+                    throttle.reset();
                 } else {
                     try {
                         Throttler.Adjustment adjustment = Throttler.Adjustment.valueOf(cmd);
                         throttle.adjustThrottle(adjustment);
                     } catch (IllegalArgumentException ix) {
-                        byte[] rsp = ("You wot? " + cmd + "? Commands: STATUS or " + EnumSet.allOf(Throttler.Adjustment.class)).getBytes();
+                        byte[] rsp = ("You wot? " + cmd + "? Commands: STATUS, RESET or " + EnumSet.allOf(Throttler.Adjustment.class)).getBytes();
                         DatagramPacket status = new DatagramPacket(rsp, rsp.length, packet.getSocketAddress());
                         cmdSocket.send(status);
                     }

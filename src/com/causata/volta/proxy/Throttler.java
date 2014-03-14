@@ -39,8 +39,8 @@ class Throttler implements Runnable, Closeable {
         packets = new AtomicLong(0);
 
         // Initial rate settings
-        rate = 10;
-        increment = 1;
+        rate = 100;
+        increment = 2;
         permits = new Semaphore(rate);
 
         running = true;
@@ -59,11 +59,11 @@ class Throttler implements Runnable, Closeable {
         packets.incrementAndGet();
     }
 
-    /**
-     * Release a message x-fer permit
-     */
-    void release() {
-        permits.release();
+    void reset() {
+        rate = 100;
+        increment = 2;
+        packets.set(0L);
+        permits.drainPermits();
     }
 
     void adjustThrottle(Adjustment adjustment) {
@@ -102,12 +102,13 @@ class Throttler implements Runnable, Closeable {
         while (running) {
             try {
                 // Check for further throttle easing due to idleness
-                if (nextTick > lastAdjustmentTimeStamp + (5*60*1000*1000*1000L)) {
-                    // Five minutes since any update - maybe ease.
+                if (nextTick > (lastAdjustmentTimeStamp + (30*1000*1000*1000L))) {
+                    // Thirty seconds since any update - maybe ease.
                     if (permits.availablePermits() < rate) {
                         // Current rate is approaching or at the rate limit
                         adjustThrottle(Adjustment.EASE);
                     }
+                    lastAdjustmentTimeStamp = nextTick;
                 }
 
                 // Next tick in 20ms
@@ -116,7 +117,7 @@ class Throttler implements Runnable, Closeable {
                 // Top up the available permits to the desired rate - the increment is 1/50 of the per second rate.
                 int available = permits.availablePermits();
                 if (available < rate) {
-                    permits.release(Math.min(increment, rate - available));
+                    permits.release(Math.max(0, Math.min(increment, rate - available)));
                 }
 
                 long sleepNanos = nextTick - System.nanoTime();
